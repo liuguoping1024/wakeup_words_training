@@ -1,0 +1,34 @@
+# ── Runtime / intermediate data ────────────────────────────────────────────────
+data/
+work/
+outputs/
+
+# ── Python ─────────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+*.egg-info/
+
+# ── TFLite model outputs (keep in outputs/, not in inference/) ─────────────────
+inference/*.tflite
+inference/*.json
+
+# ── Audio / large binary assets ────────────────────────────────────────────────
+*.wav
+*.mp3
+*.flac
+*.tar
+*.tar.gz
+*.zip
+
+# ── Docker / build artifacts ───────────────────────────────────────────────────
+*.log
+
+# ── Editor / OS ────────────────────────────────────────────────────────────────
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.swo
