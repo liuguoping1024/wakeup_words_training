@@ -88,7 +88,14 @@ ensure_valid_tar() {
 ensure_valid_zip() {
   local file="$1"
   local url="$2"
+  local sig
+  sig="$(zip_signature "${file}")"
+  local marker="${file}.valid.sha256"
+  if [[ -f "${marker}" ]] && [[ "$(cat "${marker}")" == "${sig}" ]]; then
+    return 0
+  fi
   if unzip -tq "${file}" >/dev/null 2>&1; then
+    echo "${sig}" > "${marker}"
     return 0
   fi
   log "Corrupted zip detected: ${file}"
@@ -97,6 +104,12 @@ ensure_valid_zip() {
     log "Invalid zip after re-download: ${file}"
     exit 1
   }
+  echo "$(zip_signature "${file}")" > "${marker}"
+}
+
+zip_signature() {
+  local file="$1"
+  sha256sum "${file}" | awk '{print $1}'
 }
 
 # Positive augmentation sources
@@ -153,12 +166,16 @@ cd "${DATA_DIR}/negative_datasets"
 for z in "${DATA_DIR}"/negative_zips/*.zip; do
   base="$(basename "${z}" .zip)"
   ensure_dir "${base}"
-  if [[ -f "${base}/manifest.json" || -f "${base}/data_specs.json" ]]; then
-    log "Already extracted: ${base}"
-  else
-    log "Extracting ${base}.zip..."
-    unzip -o "${z}" -d "${base}"
+  marker="${base}/.extract_done"
+  sig="$(zip_signature "${z}")"
+  if [[ -f "${marker}" ]] && [[ "$(cat "${marker}")" == "${sig}" ]]; then
+    log "Already extracted (signature matched): ${base}"
+    continue
   fi
+
+  log "Extracting ${base}.zip..."
+  unzip -o "${z}" -d "${base}"
+  echo "${sig}" > "${marker}"
 done
 
 log "Datasets download and extraction completed."
