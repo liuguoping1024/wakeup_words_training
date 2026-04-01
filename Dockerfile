@@ -28,6 +28,7 @@ RUN git lfs install
 WORKDIR /workspace
 
 COPY scripts /workspace/scripts
-RUN chmod +x /workspace/scripts/*.sh
+COPY scripts-real /workspace/scripts-real
+RUN chmod +x /workspace/scripts/*.sh /workspace/scripts-real/*.sh
 
 ENTRYPOINT ["/workspace/scripts/run_pipeline.sh"]

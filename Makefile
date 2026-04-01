@@ -42,3 +42,57 @@ train: build
 		-v "$(HOST_DIR)/scripts:/workspace/scripts" \
 		--entrypoint /bin/bash \
 		$(IMAGE) -lc "chmod +x /workspace/scripts/*.sh && /workspace/scripts/run_pipeline.sh"
+
+# ── 「你好树实」真实语音训练 ──────────────────────────────────────────────
+REAL_KEYWORD_PHRASE ?= 你好树实
+REAL_KEYWORD_ID ?= nihao_shushi
+REAL_TRAIN_STEPS ?= 15000
+REAL_TARGET_POSITIVE ?= 5000
+
+.PHONY: train-real split-real eval-real
+
+split-real:
+	docker run --rm \
+		-e KEYWORD_PHRASE="$(REAL_KEYWORD_PHRASE)" \
+		-e KEYWORD_ID="$(REAL_KEYWORD_ID)" \
+		-v "$(HOST_DIR)/data:/workspace/data" \
+		-v "$(HOST_DIR)/work:/workspace/work" \
+		-v "$(HOST_DIR)/scripts-real:/workspace/scripts-real" \
+		--entrypoint /bin/bash \
+		$(IMAGE) -lc "\
+		  source /workspace/work/micro-wake-word/.venv/bin/activate && \
+		  python /workspace/scripts-real/01_split_real_voices.py \
+		    --sounds-dir /workspace/data/sounds \
+		    --output-dir /workspace/data/positive_raw/$(REAL_KEYWORD_ID)"
+
+train-real: build
+	docker run --rm --gpus all \
+		-e KEYWORD_PHRASE="$(REAL_KEYWORD_PHRASE)" \
+		-e KEYWORD_ID="$(REAL_KEYWORD_ID)" \
+		-e TRAIN_STEPS="$(REAL_TRAIN_STEPS)" \
+		-e TARGET_POSITIVE="$(REAL_TARGET_POSITIVE)" \
+		-e TF_FORCE_GPU_ALLOW_GROWTH=true \
+		-e XLA_FLAGS=--xla_gpu_cuda_data_dir=/usr/local/cuda \
+		-e TF_CPP_MIN_LOG_LEVEL=2 \
+		-v "$(HOST_DIR)/data:/workspace/data" \
+		-v "$(HOST_DIR)/outputs:/workspace/outputs" \
+		-v "$(HOST_DIR)/work:/workspace/work" \
+		-v "$(HOST_DIR)/scripts:/workspace/scripts" \
+		-v "$(HOST_DIR)/scripts-real:/workspace/scripts-real" \
+		--entrypoint /bin/bash \
+		$(IMAGE) -lc "chmod +x /workspace/scripts/*.sh /workspace/scripts-real/*.sh && /workspace/scripts-real/run_pipeline.sh"
+
+eval-real:
+	docker run --rm \
+		-v "$(HOST_DIR)/data:/workspace/data" \
+		-v "$(HOST_DIR)/outputs:/workspace/outputs" \
+		-v "$(HOST_DIR)/work:/workspace/work" \
+		-v "$(HOST_DIR)/inference:/workspace/inference" \
+		-v "$(HOST_DIR)/scripts-real:/workspace/scripts-real" \
+		--entrypoint /bin/bash \
+		$(IMAGE) -lc "\
+		  source /workspace/work/micro-wake-word/.venv/bin/activate && \
+		  python /workspace/scripts-real/eval_model.py \
+		    --model /workspace/outputs/$(REAL_KEYWORD_ID).tflite \
+		    --pos /workspace/data/positive_raw/$(REAL_KEYWORD_ID) \
+		    --cutoff 0.10 --window 3"

@@ -19,6 +19,7 @@ inference/*.json
 *.wav
 *.mp3
 *.flac
+*.pkf
 *.tar
 *.tar.gz
 *.zip
