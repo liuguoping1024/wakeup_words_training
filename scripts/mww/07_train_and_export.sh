@@ -3,22 +3,19 @@ set -euo pipefail
 source "$(cd "$(dirname "$0")" && pwd)/common.sh"
 
 cd "${MWW_DIR}"
-source .venv/bin/activate
 
 mkdir -p "${OUTPUT_DIR}"
 
-# 链接数据目录到 micro-wake-word 工作树
+# Link data directories into micro-wake-word working tree so config paths stay simple.
 ln -sfn "${DATA_DIR}/generated_augmented_features" "${MWW_DIR}/generated_augmented_features"
 ln -sfn "${DATA_DIR}/negative_datasets" "${MWW_DIR}/negative_datasets"
 
-python /workspace/scripts-real/04_write_training_config.py \
+python3 ${SCRIPT_DIR}/06_write_training_config.py \
   --steps "${TRAIN_STEPS}" \
   --output "${MWW_DIR}/training_parameters.yaml" \
   --train-dir "trained_models/${KEYWORD_ID}"
 
-log "开始训练 ${KEYWORD_PHRASE} (${KEYWORD_ID})，步数=${TRAIN_STEPS}"
-
-python -m microwakeword.model_train_eval \
+python3 -m microwakeword.model_train_eval \
   --training_config='training_parameters.yaml' \
   --train 1 \
   --restore_checkpoint 1 \
@@ -56,5 +53,6 @@ cat > "${OUTPUT_DIR}/${KEYWORD_ID}.json" <<EOF
 }
 EOF
 
-log "模型已导出: ${OUTPUT_DIR}/${KEYWORD_ID}.tflite"
-log "配置已导出: ${OUTPUT_DIR}/${KEYWORD_ID}.json"
+log "Exported:"
+log " - ${OUTPUT_DIR}/${KEYWORD_ID}.tflite"
+log " - ${OUTPUT_DIR}/${KEYWORD_ID}.json"

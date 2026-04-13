@@ -1,124 +1,97 @@
-# Wake Word Training: "help me"
+# Wake Word Training
 
-A fully automated, containerized pipeline to train a custom wake word model using [microWakeWord](https://github.com/OHF-Voice/micro-wake-word), exportable as `.tflite` for ESPHome / Home Assistant.
+训练自定义唤醒词模型，支持两个框架：
+- **MWW** (micro-wake-word) — TensorFlow，输出量化 TFLite，适合 ESPHome / Home Assistant 边缘设备
+- **OWW** (openWakeWord) — PyTorch，输出 ONNX，适合通用 Linux 设备
 
----
+两个唤醒词：
+- **help me** — 英文，TTS 合成正样本
+- **你好树实** — 中文，40 位说话人真实录音（99,454 条）
 
-## Hardware & Compatibility
+## 环境
 
-| Layer | This Setup | Required | Status |
-|-------|-----------|----------|--------|
-| GPU | GTX 1080 Ti (sm_61) × 4 | sm_35+ | ✅ |
-| Driver | 545.23 | ≥520 for CUDA 12.x | ✅ |
-| CUDA runtime | 12.3 (driver built-in) | 12.3 | ✅ |
-| cuDNN | pip 8.9.7.29 | 8.9.x | ✅ |
-| TensorFlow | 2.16.2 | ≥2.16 | ✅ |
-| Docker base image | `cuda:12.2.2-cudnn8-devel` | includes `ptxas` | ✅ |
-| VRAM | 11 GB × 4 | model ~100 KB, training <1 GB | ✅ very comfortable |
-| RAM | 251 GB | data loading ~10–20 GB | ✅ |
-| Disk | 1.3 TB available | ~20–50 GB | ✅ |
+| 项目 | 配置 |
+|------|------|
+| GPU | GTX 1080 Ti × 4 (sm_61, 11GB) |
+| Driver | 545.23, CUDA 12.3 |
+| OS | Ubuntu 20.04 |
+| Docker | NVIDIA Container Toolkit |
 
-**OS**: Ubuntu 20.04.6 LTS
-**Docker**: with NVIDIA Container Toolkit (`--gpus all`)
+全部训练在 Docker 容器内执行，无需宿主机 Python 环境。
 
----
-
-## Outputs
-
-After training, the following files are written to `outputs/`:
-
-- `help_me.tflite` — quantized streaming TFLite model
-- `help_me.json` — ESPHome manifest (cutoff, window size, etc.)
-
----
-
-## Quick Start
-
-### 1. Build the Docker image
+## 快速开始
 
 ```bash
-make build
-# or:
-docker build -t wakeword-trainer:latest .
+# 构建镜像
+make build-all
+
+# 训练 MWW help_me
+make mww-help-me
+
+# 训练 MWW 你好树实
+make mww-nihao-shushi
+
+# 训练 OWW help_me
+make oww-help-me
+
+# 评估
+make eval-all
+
+# 全部训练
+make train-all
 ```
 
-### 2. Run the full pipeline
+## 项目结构
 
-```bash
-make train
-# or manually:
-docker run --rm --gpus all \
-  -e KEYWORD_PHRASE="help me" \
-  -e KEYWORD_ID="help_me" \
-  -e POSITIVE_SAMPLES="800" \
-  -e TRAIN_STEPS="12000" \
-  -v "$(pwd)/data:/workspace/data" \
-  -v "$(pwd)/outputs:/workspace/outputs" \
-  -v "$(pwd)/work:/workspace/work" \
-  -v "$(pwd)/scripts:/workspace/scripts" \
-  wakeword-trainer:latest
+```
+├── docker/
+│   ├── mww.Dockerfile          # TF 2.16.2 + cuDNN 8
+│   └── oww.Dockerfile          # PyTorch 2.5.1 + CUDA 12.1
+├── scripts/
+│   ├── mww/                    # MWW 流水线脚本
+│   │   ├── run_pipeline_tts.sh     # help_me (TTS)
+│   │   ├── run_pipeline_real.sh    # 你好树实 (真实语音)
+│   │   └── ...
+│   ├── oww/                    # OWW 训练脚本
+│   │   ├── train_oww.py
+│   │   └── train_nihao_oww.py
+│   └── eval_model.py           # 通用评估脚本
+├── data/                       # 训练数据 (gitignore)
+├── work/                       # 源码仓库 (gitignore)
+│   ├── micro-wake-word/
+│   ├── piper-sample-generator/
+│   ├── piper-sample-generator-oww/
+│   └── openWakeWord/
+├── outputs/                    # 模型输出
+│   ├── help_me.tflite + .json
+│   ├── nihao_shushi.tflite + .json
+│   └── oww/
+│       ├── help_me.onnx
+│       └── nihao_shushi.onnx
+├── inference/                  # 推理运行时
+├── logs/                       # 训练日志
+└── docs/                       # 文档
 ```
 
-### 3. (Optional) Add real voice samples
+## 最新训练结果 (2026-04-11)
 
-For better real-world accuracy, record real voice samples and place them in `data/real_voices/` before training:
+### MWW 模型
 
-```bash
-mkdir -p data/real_voices
-# copy *.wav files recorded at 16kHz mono into data/real_voices/
-```
+| 模型 | 召回率 | 平均概率 | 测试样本 |
+|------|--------|---------|---------|
+| help_me | **98.0%** (49/50) | 0.891 | 50 条真实录音 |
+| nihao_shushi | **99.5%** (199/200) | 0.792 | 200 条切分录音 |
 
-The pipeline will automatically detect and merge them with TTS-generated positive samples.
+### OWW 模型
 
----
+| 模型 | Accuracy | Recall | FP/Hour |
+|------|----------|--------|---------|
+| help_me | 70.2% | 40.6% | 1.15 |
+| nihao_shushi | N/A | N/A | 中文不适配 OWW 英文 pipeline |
 
-## Configurable Environment Variables
+## Docker 镜像
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `KEYWORD_PHRASE` | `help me` | Wake word text |
-| `KEYWORD_ID` | `help_me` | Output file name prefix |
-| `POSITIVE_SAMPLES` | `800` | Number of TTS positive samples to generate |
-| `TRAIN_STEPS` | `12000` | Training steps |
-
----
-
-## Pipeline Stages
-
-`scripts/run_pipeline.sh` orchestrates:
-
-1. **`01`** Clone & install `micro-wake-word` and `piper-sample-generator`, pin TF 2.16.2 + cuDNN 8.9.7.29
-2. **`00`** Patch `microwakeword/train.py` for TF 2.16.2 compatibility (`.numpy()` → `np.asarray()`)
-3. **`02`** Download augmentation data (MIT RIR / AudioSet / FMA) and negative feature ZIPs with multi-URL fallback
-4. **`03`** Resample raw audio to 16 kHz using `soundfile` + `resampy` (no `torchcodec` required)
-5. **`04`** Generate positive TTS samples via Piper (fallback: `espeak-ng`)
-6. **`05`** Augment & generate spectrogram features (Ragged Mmap); merges real voice samples if present
-7. **`07`** Train, quantize, and export `tflite` + `json`
-
----
-
-## Inference (Embedded / Edge Devices)
-
-The `inference/` directory contains a lightweight runtime for running the model on any Linux device (tested on Orange Pi 5B, aarch64, no GPU):
-
-```bash
-cd inference/
-bash setup_venv.sh          # create venv, install ai-edge-litert / pymicro-features / pyaudio
-source .venv/bin/activate
-
-# Test with a WAV file
-python detect.py --model help_me.tflite --wav test.wav --cutoff 0.10 --verbose
-
-# Real-time microphone detection
-python detect.py --model help_me.tflite --cutoff 0.10 --verbose
-```
-
-For Home Assistant OS devices, the script auto-connects to the `hassio_audio` PulseAudio socket at `/var/lib/homeassistant/audio/external/pulse.sock`.
-
----
-
-## ESPHome Integration
-
-Copy `outputs/help_me.tflite` and `outputs/help_me.json` to a web-accessible location, then reference the model in your ESPHome config.
-
-> Tip: tune `probability_cutoff` and `sliding_window_size` in the JSON based on your environment's false-positive / false-negative rate.
+| 镜像 | 基础 | 用途 |
+|------|------|------|
+| wakeword-mww | cuda:12.2.2-cudnn8 + TF 2.16.2 | MWW 训练 |
+| wakeword-oww | cuda:12.2.2-cudnn8 + PyTorch 2.5.1+cu121 | OWW 训练 |

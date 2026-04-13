@@ -1,9 +1,9 @@
-# ── Runtime / intermediate data ────────────────────────────────────────────────
+# ── Runtime / intermediate data ──────────────────────────────────────
 data/
 work/
 outputs/
 
-# ── Python ─────────────────────────────────────────────────────────────────────
+# ── Python ──────────────────────────────────────────────────────────
 __pycache__/
 *.py[cod]
 *.pyo
@@ -11,11 +11,11 @@ __pycache__/
 venv/
 *.egg-info/
 
-# ── TFLite model outputs (keep in outputs/, not in inference/) ─────────────────
+# ── TFLite model outputs ────────────────────────────────────────────
 inference/*.tflite
 inference/*.json
 
-# ── Audio / large binary assets ────────────────────────────────────────────────
+# ── Audio / large binary assets ─────────────────────────────────────
 *.wav
 *.mp3
 *.flac
@@ -23,13 +23,19 @@ inference/*.json
 *.tar
 *.tar.gz
 *.zip
+*.npy
 
-# ── Docker / build artifacts ───────────────────────────────────────────────────
+# ── Docker / build artifacts ────────────────────────────────────────
 *.log
+logs/
 
-# ── Editor / OS ────────────────────────────────────────────────────────────────
+# ── Editor / OS ─────────────────────────────────────────────────────
 .DS_Store
 .idea/
 .vscode/
 *.swp
 *.swo
+
+# ── Old directories (deprecated) ────────────────────────────────────
+oww_venv/
+oww_train/
