@@ -95,3 +95,4 @@ make train-all
 |------|------|------|
 | wakeword-mww | cuda:12.2.2-cudnn8 + TF 2.16.2 | MWW 训练 |
 | wakeword-oww | cuda:12.2.2-cudnn8 + PyTorch 2.5.1+cu121 | OWW 训练 |
+| cosyvoice | cuda:12.2.2-cudnn8 + PyTorch 2.5.1+cu121 | CosyVoice2 中文 TTS 生成 |

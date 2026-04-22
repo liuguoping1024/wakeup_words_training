@@ -21,9 +21,13 @@ ${SCRIPT_DIR}/04_generate_positive_samples.sh
 
 # Step 5: Generate spectrogram features
 REAL_VOICE_ARG=""
-if [[ -d "${DATA_DIR}/real_voices" ]] && ls "${DATA_DIR}/real_voices/"*.wav > /dev/null 2>&1; then
+REAL_VOICE_DIR="${DATA_DIR}/real_voices_${KEYWORD_ID}"
+if [[ -d "${REAL_VOICE_DIR}" ]] && ls "${REAL_VOICE_DIR}/"*.wav > /dev/null 2>&1; then
+    REAL_VOICE_ARG="--real-voice-dir ${REAL_VOICE_DIR}"
+    log "Found real voice samples: $(ls ${REAL_VOICE_DIR}/*.wav | wc -l) in ${REAL_VOICE_DIR}, will merge"
+elif [[ -d "${DATA_DIR}/real_voices" ]] && ls "${DATA_DIR}/real_voices/"*.wav > /dev/null 2>&1; then
     REAL_VOICE_ARG="--real-voice-dir ${DATA_DIR}/real_voices"
-    log "Found real voice samples: $(ls ${DATA_DIR}/real_voices/*.wav | wc -l), will merge"
+    log "Found real voice samples: $(ls ${DATA_DIR}/real_voices/*.wav | wc -l) in ${DATA_DIR}/real_voices, will merge"
 fi
 
 python3 ${SCRIPT_DIR}/05_generate_features.py \

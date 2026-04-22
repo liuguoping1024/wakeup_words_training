@@ -123,6 +123,7 @@
 |------|------|------|
 | `wakeword-mww` | ~15.7GB | TF 2.16.2 + cuDNN 8 + PyTorch CPU |
 | `wakeword-oww` | ~16.5GB | PyTorch 2.5.1+cu121 |
+| `cosyvoice` | ~17.9GB | CosyVoice2 TTS 生成（PyTorch 2.5.1+cu121） |
 
 ---
 
@@ -156,6 +157,20 @@ edge-tts              # 中文 TTS
 setuptools<81
 ```
 
+### CosyVoice 镜像关键依赖
+
+```
+torch==2.5.1+cu121
+torchaudio==2.5.1+cu121
+numpy==1.26.4
+modelscope==1.20.0
+transformers==4.51.3
+librosa==0.10.2
+soundfile==0.12.1
+setuptools<81
+# 过滤掉: openai-whisper, tensorrt-cu12*, deepspeed, torch/torchaudio（避免覆盖 cu121）
+```
+
 ---
 
 ## 已知问题 & Workaround
@@ -171,6 +186,9 @@ setuptools<81
 | python3.10 无 dev 头文件 | 系统包不完整 | Docker 内编译或用预编译 wheel |
 | AudioSet tar 404 | HuggingFace 转 parquet | 多 URL 回退 + streaming API |
 | `torchcodec` 安装失败 | 编译环境不完整 | 用 `soundfile` + `resampy` 替代 |
+| CosyVoice tensorrt-cu12 | 拉入 CUDA 12.4+ 依赖 | Dockerfile 中过滤 tensorrt-cu12* |
+| CosyVoice torch 版本覆盖 | requirements.txt 里 torch==2.3.1 | Dockerfile 中过滤 torch/torchaudio，预装 cu121 |
+| CosyVoice deepspeed 编译 | sm_61 CUDA kernel 编译可能失败 | Dockerfile 中过滤 deepspeed（推理不需要） |
 
 ---
 
