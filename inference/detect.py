@@ -90,29 +90,48 @@ def load_wav_16k_mono(path: str) -> np.ndarray:
 # ─── 测试 WAV ────────────────────────────────────────────────────────────────
 
 def run_wav(detector: WakeWordDetector, wav_path: str, verbose: bool) -> int:
+    """
+    离线评估单个 WAV 文件，统计是否有触发。
+
+    注意：这里的逻辑与 scripts/eval_model.py 中的 test_file 保持一致：
+      - 整段音频只喂一次 feed_and_score(pcm)
+      - 在返回的分数序列上做滑动窗口判定
+      - 只关心「是否触发过一次」，返回 0/1
+    """
+    from collections import deque
+
     pcm = load_wav_16k_mono(wav_path)
-    duration = len(pcm) / SAMPLE_RATE
-    detections = 0
+    if len(pcm) == 0:
+        return 0
 
-    for i in range(0, len(pcm), STRIDE_SAMPLES):
-        chunk = pcm[i:i + STRIDE_SAMPLES]
-        if len(chunk) < STRIDE_SAMPLES:
+    # 获取整段音频的分数序列（不再二次 feed）
+    scores = detector.feed_and_score(pcm)
+    if not scores:
+        if verbose:
+            print("[warn] 无得分输出，可能音频过短")
+        return 0
+
+    win: deque[float] = deque(maxlen=detector.window_count)
+    triggered = False
+    max_prob = 0.0
+
+    for idx, s in enumerate(scores):
+        max_prob = max(max_prob, s)
+        win.append(s)
+        if (
+            len(win) == detector.window_count
+            and all(v >= detector.cutoff for v in win)
+        ):
+            triggered = True
+            if verbose:
+                t = idx * STRIDE_SAMPLES / SAMPLE_RATE
+                print(f"\n>>> 检测到唤醒词！  t≈{t:.2f}s  prob={s:.3f}")
             break
-        scores = detector.feed_and_score(chunk)
-        t = i / SAMPLE_RATE
-
-        if verbose and scores:
-            prob = scores[-1]
-            bar = "█" * int(prob * 40)
-            print(f"\r{t:6.2f}s  [{bar:<40}] {prob:.3f}", end="", flush=True)
-
-        if detector.feed(chunk):
-            detections += 1
-            print(f"\n>>> 检测到唤醒词！  t={t:.2f}s / {duration:.1f}s")
 
     if verbose:
-        print()
-    return detections
+        print(f"[info] {Path(wav_path).name} max_prob={max_prob:.3f}  hit={triggered}")
+
+    return 1 if triggered else 0
 
 
 def run_wav_dir(detector: WakeWordDetector, wav_dir: str, verbose: bool):
