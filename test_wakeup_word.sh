@@ -16,16 +16,17 @@ usage() {
 连续自动唤醒词检测（无需按 Enter，自动循环录音+检测）
 
 选项（通过环境变量设置）:
-  MODEL=PATH       tflite 模型路径（默认 inference/jiuming_v3.tflite）
+  MODEL=PATH       tflite 模型路径（默认 inference/jiuming_v5.tflite）
   CUTOFF=FLOAT     触发阈值 0~1（默认 0.30）
   WINDOW=N         连续帧数（默认 3）
   DURATION=N       每轮录音秒数（默认 3）
+  SAVE_DIR=PATH    录音保存目录（默认 data/test_samples/<timestamp>）
   PULSE_SOCKET=PATH  PulseAudio socket 路径
 
 示例:
   ./test_wakeup_word.sh
   MODEL=inference/help_me.tflite CUTOFF=0.10 WINDOW=5 ./test_wakeup_word.sh
-  DURATION=5 ./test_wakeup_word.sh
+  DURATION=5 SAVE_DIR=data/debug_samples ./test_wakeup_word.sh
 EOF
   exit 0
 }
@@ -36,11 +37,14 @@ ROOT_DIR="$(cd "$(dirname "$0")" && pwd)"
 INF_DIR="${ROOT_DIR}/inference"
 VENV_DIR="${ROOT_DIR}/work/.venv"
 
-MODEL="${MODEL:-${INF_DIR}/jiuming_v3.tflite}"
-CUTOFF="${CUTOFF:-0.5}"
+MODEL="${MODEL:-${INF_DIR}/jiuming_v5.tflite}"
+CUTOFF="${CUTOFF:-0.88}"
 WINDOW="${WINDOW:-3}"
 DURATION="${DURATION:-3}"
 PULSE_SOCKET="${PULSE_SOCKET:-/var/lib/homeassistant/audio/external/pulse.sock}"
+SAVE_DIR="${SAVE_DIR:-${ROOT_DIR}/data/test_samples/$(date +%Y%m%d_%H%M%S)}"
+
+mkdir -p "${SAVE_DIR}"
 
 # ── 模型检查 ─────────────────────────────────────────────────────────
 if [[ ! -f "${MODEL}" ]]; then
@@ -84,6 +88,7 @@ echo "║  Python : ${PYTHON}"
 echo "║  Model  : ${MODEL}"
 echo "║  Params : cutoff=${CUTOFF}, window=${WINDOW}"
 echo "║  Chunk  : ${DURATION}s / 轮"
+echo "║  SaveDir: ${SAVE_DIR}"
 echo "║  Pulse  : ${PULSE_SOCKET}"
 echo "╚══════════════════════════════════════════════╝"
 echo ""
@@ -97,15 +102,15 @@ cleanup() {
   echo ""
   echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
   echo "  共检测 ${round} 轮，触发 ${hits} 次"
+  echo "  录音已保存: ${SAVE_DIR}"
   echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-  rm -f /tmp/wakeup_test_$$.wav
   exit 0
 }
 trap cleanup INT TERM
 
 while true; do
   round=$((round + 1))
-  TMPWAV="/tmp/wakeup_test_$$.wav"
+  TMPWAV="${SAVE_DIR}/round_$(printf '%04d' ${round}).wav"
 
   echo "──── 第 ${round} 轮 ── 录音中 (${DURATION}s)... 请说唤醒词 ────"
 
@@ -156,7 +161,6 @@ PYEOF
     echo "  ── 未触发 (累计 ${hits}/${round})"
   fi
 
-  rm -f "${TMPWAV}"
   echo ""
 
   # 短暂间隔，避免录音重叠

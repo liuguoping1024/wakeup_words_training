@@ -15,7 +15,7 @@ usage() {
 USB 耳机唤醒词测试（按 Enter 触发单次录音+检测）
 
 选项（通过环境变量设置）:
-  MODEL=PATH       tflite 模型路径（默认 inference/jiuming_v3.tflite）
+  MODEL=PATH       tflite 模型路径（默认 inference/jiuming_v5.tflite）
   CUTOFF=FLOAT     触发阈值 0~1（默认 0.30）
   WINDOW=N         连续帧数（默认 3）
   DURATION=N       每次录音秒数（默认 3）
@@ -34,7 +34,7 @@ EOF
 ROOT_DIR="$(cd "$(dirname "$0")" && pwd)"
 INF_DIR="${ROOT_DIR}/inference"
 
-MODEL="${MODEL:-${INF_DIR}/jiuming_v3.tflite}"
+MODEL="${MODEL:-${INF_DIR}/jiuming_v5.tflite}"
 CUTOFF="${CUTOFF:-0.30}"
 WINDOW="${WINDOW:-3}"
 PULSE_SOCKET="${PULSE_SOCKET:-/var/lib/homeassistant/audio/external/pulse.sock}"
