@@ -39,3 +39,13 @@ logs/
 # ── Old directories (deprecated) ────────────────────────────────────
 oww_venv/
 oww_train/
+
+# ── ARM device test recordings ──────────────────────────────────────
+test/
+
+# ── Misc dev workspace ──────────────────────────────────────────────
+workspace/
+
+# ── bad sample dumps (for human review only) ────────────────────────
+bad_voices/
+bad_voices_*/
